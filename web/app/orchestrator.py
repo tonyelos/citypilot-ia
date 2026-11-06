@@ -32,7 +32,11 @@ def _validar_entrada(ciudad, tipo_turismo, duracion_horas, preferencias):
     if duracion not in DURACIONES_VALIDAS:
         raise ValueError("La duración debe ser 2, 4 o 6 horas.")
 
-    preferencias = (preferencias or "").strip()
+    if preferencias is None:
+        preferencias = ""
+    if not isinstance(preferencias, str):
+        raise ValueError("Las preferencias deben ser texto.")
+    preferencias = preferencias.strip()
     if len(preferencias) > MAX_PREFERENCIAS:
         raise ValueError(
             f"Las preferencias no pueden superar los {MAX_PREFERENCIAS} caracteres."
@@ -62,8 +66,6 @@ def procesar_solicitud(ciudad: str, tipo_turismo: str, duracion_horas: int, pref
         lugares = api_clients.obtener_lugares(
             geocodificacion["lat"], geocodificacion["lon"], tipo_turismo
         )
-        if not lugares:
-            lugares = []
     except (RuntimeError, ValueError, NotImplementedError) as exc:
         # Fallback explícito para demostrar el flujo si Overpass no responde.
         logger.warning("Overpass no disponible; se usa el fixture demo: %s", exc)
