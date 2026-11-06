@@ -8,14 +8,42 @@
 </section>
 <section class="surface">
   <h2>Tu plan para hoy</h2>
-  <!-- TODO(ALUMNADO): construir aquí un formulario HTML real.
-       action="/planificar", method="POST".
-       Campos obligatorios: ciudad (texto), tipo_turismo (select con
-       cultural/gastronomica/naturaleza/familiar), duracion_horas (2,4,6).
-       Campo opcional: preferencias (textarea de 200 caracteres aprox.).
-       Botón submit. Etiquetas accesibles y validación básica HTML.
-       IMPORTANTE: no se proporciona el HTML del formulario. -->
-  <div class="todo">🛠️ <strong>Por implementar:</strong> formulario de preferencias y botón «Generar mi ruta».</div>
+  {% if error %}<p class="notice">{{ error }}</p>{% endif %}
+
+  <form method="post" action="/planificar">
+    <div>
+      <label for="ciudad">Ciudad</label>
+      <input id="ciudad" name="ciudad" type="text" maxlength="80" placeholder="Valencia" required>
+    </div>
+    <div>
+      <label for="tipo_turismo">Tipo de turismo</label>
+      <select id="tipo_turismo" name="tipo_turismo" required>
+        <option value="" disabled selected>Selecciona una opción</option>
+        <option value="cultural">Cultural</option>
+        <option value="gastronomica">Gastronómica</option>
+        <option value="naturaleza">Naturaleza</option>
+        <option value="familiar">Familiar</option>
+      </select>
+    </div>
+    <div>
+      <label for="duracion_horas">Duración</label>
+      <select id="duracion_horas" name="duracion_horas" required>
+        <option value="" disabled selected>Selecciona horas</option>
+        <option value="2">2 horas</option>
+        <option value="4">4 horas</option>
+        <option value="6">6 horas</option>
+      </select>
+    </div>
+    <div>
+      <label for="preferencias">Preferencias (opcional)</label>
+      <textarea id="preferencias" name="preferencias" rows="3" maxlength="200"
+                placeholder="Con niños, evitar caminar mucho, interesa la historia..."></textarea>
+      <p class="hint">Máximo 200 caracteres.</p>
+    </div>
+    <p><button type="submit">Generar mi ruta</button></p>
+  </form>
+
+  <p class="hint">Los lugares proceden de OpenStreetMap; los horarios de apertura no están verificados.</p>
 </section>
 <section class="three">
   <article class="tile"><h3>🌤️ Meteo</h3><p>El plan tendrá en cuenta el tiempo.</p></article>

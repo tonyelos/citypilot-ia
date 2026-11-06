@@ -3,11 +3,45 @@
 {% block content %}
 <section class="hero"><span class="eyebrow">TU ITINERARIO</span><h1>Un día diferente</h1></section>
 <section class="surface">
-  <!-- TODO(ALUMNADO): mostrar ciudad, tipo, temperatura, lluvia,
-       3-5 paradas, enlaces individuales a OSM si hay coordenadas,
-       tiempo estimado y texto generado por el modelo.
-       Si modo_demo: mostrar un aviso muy visible de DATOS SIMULADOS.
-       Si hay error: mostrar mensaje comprensible sin secretos. -->
-  <div class="todo">🛠️ Por implementar: resultado del planificador.</div>
+  {% if modo_demo %}
+  <p class="notice"><strong>DATOS DEMO:</strong> no se pudieron obtener lugares reales de Overpass;
+    se muestran lugares ficticios para demostrar el flujo. No son sitios verificados.</p>
+  {% endif %}
+
+  <h2>{{ ciudad }}{% if pais %} · {{ pais }}{% endif %}</h2>
+  <p class="hint">
+    {{ tipo_turismo }} · {{ duracion_horas }} h · Solicitud #{{ solicitud_id }}
+    · Modelo: {{ modo_modelo }} · {{ duracion_ms }} ms
+  </p>
+
+  <p>
+    <strong>Ahora:</strong> {{ '%.1f'|format(meteorologia.temperatura_c) }} °C ·
+    {{ '%.1f'|format(meteorologia.precipitacion_mm) }} mm ·
+    código WMO {{ meteorologia.codigo_tiempo }}
+  </p>
+
+  <h2>Paradas propuestas</h2>
+  {% if lugares %}
+  <ul>
+    {% for lugar in lugares %}
+    <li>
+      <a href="https://www.openstreetmap.org/?mlat={{ lugar.lat }}&amp;mlon={{ lugar.lon }}#map=17/{{ lugar.lat }}/{{ lugar.lon }}"
+         target="_blank" rel="noopener">{{ lugar.nombre }}</a>
+      <span class="hint">· {{ lugar.categoria }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No hay lugares verificados disponibles para esta búsqueda.</p>
+  {% endif %}
+
+  <h2>Itinerario</h2>
+  <div class="itinerario">{{ itinerario }}</div>
+
+  <p class="hint">
+    Ruta orientativa generada a partir de lugares de OpenStreetMap.
+    No se garantizan horarios de apertura, eventos ni tiempos reales de desplazamiento.
+  </p>
+  <p><a class="button" href="/">Volver a planificar</a></p>
 </section>
 {% endblock %}
