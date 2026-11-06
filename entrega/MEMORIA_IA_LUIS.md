@@ -92,6 +92,24 @@
 - **Resultado y verificación:** Suite de 15 pruebas en verde (`pytest -v`), verificación de la cabecera mágica de archivo PNG (`\x89PNG`) en los tests de respuesta HTTP.
 - **Evidencia:** `web/app/db.py`, `web/app/analytics.py`, `web/app/main.py`, `web/app/templates/analitica.html`, `web/tests/test_analitica_db.py`.
 
+### Interacción 8 — Análisis de los comentarios de revisión del PR #4 (2026-11-06)
+
+- **Qué intentaba resolver:** Mi compañero solicitó cambios en PR #4 (*Request Changes*) señalando cuatro problemas: conflicto de rebase en `main.py` con PR #2, fuga técnica de `detalle=str(exc)` en `/api/estadisticas`, falta de aislamiento/limpieza en el test de base de datos, y un valor por defecto inválido (3h) en `duracion_horas`. Quería entender el impacto técnico de cada observación antes de tocar el código.
+- **Herramienta/fuente y prompt o instrucción:** Google Gemini Web. Prompt: *"My peer requested changes on my PR: 1) rebase conflict in main.py keeping PR #2's /planificar, 2) don't return detalle=str(exc) in /api/estadisticas, 3) isolate the DB test with unique fixtures and cleanup, 4) duracion_horas default 3 is invalid (only 2, 4, 6 allowed). Can you explain what needs to be fixed and why each of these is a problem?"*
+- **Qué propuso o respondió:** Explicó que filtrar excepciones en APIs públicas expone detalles internos del esquema o de la infraestructura; que un test que asume ser la última fila en una base de datos compartida falla en concurrencia si no se limpia; y que aceptar duraciones fuera de las opciones del formulario (2, 4, 6) viola la coherencia del negocio.
+- **Qué hice yo con ello:** Validé las razones técnicas del revisor; decidí hacer el rebase interactivo conservando la ruta `/planificar` y preparar la refactorización de `db.py` y del test.
+- **Resultado y verificación:** Plan de acción claro para corregir los 4 puntos sin romper los contratos existentes.
+- **Evidencia:** Comentarios de revisión en PR #4 en GitHub.
+
+### Interacción 9 — Implementación de las correcciones del review y limpieza de tests (2026-11-06)
+
+- **Qué intentaba resolver:** Obtener patrones concretos de implementación para: 1) validar estrictamente `duracion_horas in (2, 4, 6)` como campo obligatorio, 2) registrar el error en el logger sin exponerlo al usuario, y 3) estructurar un test en Pytest con UUID único y bloque `finally` para el borrado SQL.
+- **Herramienta/fuente y prompt o instrucción:** Google Gemini Web. Prompt: *"How do I implement strict validation for duracion_horas in (2, 4, 6) in db.py, log the exception safely in Flask without exposing str(exc), and write an isolated pytest test that creates a unique row and cleans it up with a DELETE in a finally block?"*
+- **Qué propuso o respondió:** Código para comprobar `duracion_horas` con `ValueError`, sustitución en el endpoint de Flask por `app.logger.exception(...)` con mensaje genérico de error 500, y un test con `uuid.uuid4().hex` con `try...finally` ejecutando `DELETE FROM solicitudes WHERE id = :id`.
+- **Qué hice yo con ello:** Integré los fragmentos en `db.py`, `main.py` y `web/tests/test_analitica_db.py`; añadí además un test específico para verificar que duraciones distintas de 2, 4 o 6 son rechazadas de inmediato.
+- **Resultado y verificación:** `docker compose exec web python -m pytest -v` pasando 22 de 22 pruebas (100% de la aplicación integrada).
+- **Evidencia:** Commits en `feature/est3-db-analitica`, push con `--force-with-lease`.
+
 ## 4. Evolución del prompt de itinerarios (si utilicé el LLM)
 
 No aplica a PR #2: el diseño del prompt de itinerarios en Cohere corresponde a Est.2 (Marc) en `web/app/llm.py`.
