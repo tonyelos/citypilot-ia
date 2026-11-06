@@ -10,10 +10,14 @@
   - PR #4: Persistencia y analítica en PostgreSQL (`db.py`, `analytics.py`, `/analitica`, dashboard).
 - **Archivos y funciones de mi responsabilidad (revisados y adaptados por mí):**
   - `web/app/api_clients.py`: `obtener_lugares()`, `CATEGORIAS_OVERPASS`, normalización geométrica (node vs way/relation), deduplicación y fallback resiliente a fixture con `demo=True`.
-  - `web/tests/test_lugares.py`: suite de pruebas unitarias cubriendo normalización de nodos y ways, descarte de elementos sin nombre, deduplicación, validación de categorías y fallback ante 504/timeout.
+  - `web/app/db.py`: `guardar_solicitud()`, `obtener_estadisticas()`, `obtener_ultimas_solicitudes()`.
+  - `web/app/analytics.py`: `generar_grafico_ciudades()` con Matplotlib y exportación a buffer PNG.
+  - `web/app/main.py`: rutas `/analitica`, `/analitica/grafico.png`, `/api/estadisticas`.
+  - `web/app/templates/analitica.html`: panel de métricas, gráfico y tabla de últimas solicitudes sin secretos.
+  - `web/tests/test_lugares.py` y `web/tests/test_analitica_db.py`: suites de pruebas unitarias.
 - **Pruebas ejecutadas personalmente:**
-  - `docker compose exec web python -m pytest -q` → **12 passed** (9 de A1 + 3 de A2 en `test_lugares.py`).
-  - Comprobación de comportamiento real frente a caídas/latencia del servidor público `overpass-api.de`: activación correcta del fixture DEMO (`demo=True`).
+  - `docker compose exec web python -m pytest -v` → **15 passed** (A1, A2 y Analítica/DB al 100% en verde).
+  - Comprobación visual y de endpoints en `http://localhost:5000/analitica` y `http://localhost:5000/analitica/grafico.png`.
 
 ## 2. Herramientas y fuentes usadas
 
@@ -69,6 +73,42 @@
 - **Qué hice yo con ello:** Adapté la estructura al estilo del proyecto (similar a `test_geo_clima.py` de Yiao) y añadí comprobaciones adicionales: verificación de que no se inyecta código malicioso en la cadena QL y prueba de rechazo de tipos no permitidos (`test_obtener_lugares_rechaza_tipo_invalido`).
 - **Resultado y verificación:** Ejecución exitosa con `docker compose exec web python -m pytest -q` (12 passed).
 - **Evidencia:** `web/tests/test_lugares.py`.
+
+### Interacción 6 — Persistencia parametrizada en PostgreSQL y manejo de columnas JSONB (2026-11-06)
+
+- **Qué intentaba resolver:** Implementar `guardar_solicitud()` con SQLAlchemy y PostgreSQL garantizando que los datos complejos (meteorología y lugares) se guarden como columnas `jsonb`, que nunca se concatenen cadenas SQL sin parametrizar y que la función devuelva el `id` autogenerado.
+- **Herramienta/fuente y prompt o instrucción:** Google Gemini Web. Prompt: *"I need to implement guardar_solicitud(registro: dict) gpoing to int in sqlAlchemy Postgresql for my Flask project. The table is called solicitudes with columns: ciudad, pais, tipo_turismo, duracion_horas, preferencias, latitud, longitud meteorologia (jsonB), lugares (jsonB), prompt_usado, itinerario, estado, duracion_ms, error_resumido, modo_demo, modo_modelo. how do I write a safe parameterized INSERT returning the new id, ensuring dicts or lists are properly dumped to jsonB?"*
+- **Qué propuso o respondió:** Uso de `with engine.begin() as conn:`, sentencia `text(...)` con cláusula `RETURNING id;`, uso de `json.dumps()` para los campos JSON y casteo explícito con `CAST(:param AS jsonb)` en la consulta.
+- **Qué hice yo con ello:** Adopté el patrón de casteo `CAST(:param AS jsonb)` y la ejecución transaccional con `scalar_one()`. Añadí validación defensiva para que si algún campo opcional viene vacío no lance excepciones de tipo y se respete la integridad del esquema SQL de `db/init.sql`.
+- **Resultado y verificación:** Verificado con prueba unitaria en `test_analitica_db.py::test_guardar_solicitud_y_obtener_estadisticas`, comprobando que se inserta y devuelve el ID entero.
+- **Evidencia:** `web/app/db.py` (`guardar_solicitud`), `web/tests/test_analitica_db.py`.
+
+### Interacción 7 — Consultas de agregación SQL y generación de gráficos en memoria (2026-11-06)
+
+- **Qué intentaba resolver:** Obtener métricas agregadas (`COUNT(*)`, `COUNT(DISTINCT)`, `GROUP BY` por ciudad y por tipo de turismo) y generar una imagen PNG con Matplotlib para el dashboard sin usar JavaScript ni guardar archivos en disco.
+- **Herramienta/fuente y prompt o instrucción:** Google Gemini Web. Prompt: Consulta sobre consultas de agregación en PostgreSQL con SQLAlchemy `mappings().all()` y generación de gráficos con `io.BytesIO` usando el backend `Agg` de Matplotlib.
+- **Qué propuso o respondió:** Utilizar consultas SQL nativas agrupadas, configurar `matplotlib.use("Agg")`, construir un gráfico de barras horizontales y volcarlo a un buffer `io.BytesIO` retornado con `send_file`.
+- **Qué hice yo con ello:** Implementé `obtener_estadisticas()` y `obtener_ultimas_solicitudes(limite=8)` asegurando que nunca se expongan secretos ni prompts en la vista pública. Creé `web/app/analytics.py` con formateo estético de barras y etiquetas de conteo. Conecté las rutas `/analitica`, `/analitica/grafico.png` y `/api/estadisticas` en `main.py` y completé la plantilla `analitica.html`.
+- **Resultado y verificación:** Suite de 15 pruebas en verde (`pytest -v`), verificación de la cabecera mágica de archivo PNG (`\x89PNG`) en los tests de respuesta HTTP.
+- **Evidencia:** `web/app/db.py`, `web/app/analytics.py`, `web/app/main.py`, `web/app/templates/analitica.html`, `web/tests/test_analitica_db.py`.
+
+### Interacción 8 — Análisis de los comentarios de revisión del PR #4 (2026-11-06)
+
+- **Qué intentaba resolver:** Mi compañero solicitó cambios en PR #4 (*Request Changes*) señalando cuatro problemas: conflicto de rebase en `main.py` con PR #2, fuga técnica de `detalle=str(exc)` en `/api/estadisticas`, falta de aislamiento/limpieza en el test de base de datos, y un valor por defecto inválido (3h) en `duracion_horas`. Quería entender el impacto técnico de cada observación antes de tocar el código.
+- **Herramienta/fuente y prompt o instrucción:** Google Gemini Web. Prompt: *"My peer requested changes on my PR: 1) rebase conflict in main.py keeping PR #2's /planificar, 2) don't return detalle=str(exc) in /api/estadisticas, 3) isolate the DB test with unique fixtures and cleanup, 4) duracion_horas default 3 is invalid (only 2, 4, 6 allowed). Can you explain what needs to be fixed and why each of these is a problem?"*
+- **Qué propuso o respondió:** Explicó que filtrar excepciones en APIs públicas expone detalles internos del esquema o de la infraestructura; que un test que asume ser la última fila en una base de datos compartida falla en concurrencia si no se limpia; y que aceptar duraciones fuera de las opciones del formulario (2, 4, 6) viola la coherencia del negocio.
+- **Qué hice yo con ello:** Validé las razones técnicas del revisor; decidí hacer el rebase interactivo conservando la ruta `/planificar` y preparar la refactorización de `db.py` y del test.
+- **Resultado y verificación:** Plan de acción claro para corregir los 4 puntos sin romper los contratos existentes.
+- **Evidencia:** Comentarios de revisión en PR #4 en GitHub.
+
+### Interacción 9 — Implementación de las correcciones del review y limpieza de tests (2026-11-06)
+
+- **Qué intentaba resolver:** Obtener patrones concretos de implementación para: 1) validar estrictamente `duracion_horas in (2, 4, 6)` como campo obligatorio, 2) registrar el error en el logger sin exponerlo al usuario, y 3) estructurar un test en Pytest con UUID único y bloque `finally` para el borrado SQL.
+- **Herramienta/fuente y prompt o instrucción:** Google Gemini Web. Prompt: *"How do I implement strict validation for duracion_horas in (2, 4, 6) in db.py, log the exception safely in Flask without exposing str(exc), and write an isolated pytest test that creates a unique row and cleans it up with a DELETE in a finally block?"*
+- **Qué propuso o respondió:** Código para comprobar `duracion_horas` con `ValueError`, sustitución en el endpoint de Flask por `app.logger.exception(...)` con mensaje genérico de error 500, y un test con `uuid.uuid4().hex` con `try...finally` ejecutando `DELETE FROM solicitudes WHERE id = :id`.
+- **Qué hice yo con ello:** Integré los fragmentos en `db.py`, `main.py` y `web/tests/test_analitica_db.py`; añadí además un test específico para verificar que duraciones distintas de 2, 4 o 6 son rechazadas de inmediato.
+- **Resultado y verificación:** `docker compose exec web python -m pytest -v` pasando 22 de 22 pruebas (100% de la aplicación integrada).
+- **Evidencia:** Commits en `feature/est3-db-analitica`, push con `--force-with-lease`.
 
 ## 4. Evolución del prompt de itinerarios (si utilicé el LLM)
 
