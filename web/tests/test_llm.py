@@ -2,10 +2,10 @@ import os
 import requests
 from unittest.mock import patch, MagicMock
 
-# Importación corregida a nivel de app
+# Importación de la función a testear
 from app.llm import generar_itinerario
 
-#Datos de Prueba
+# Datos de prueba act con lat y long
 contexto_base = {
     "ciudad": "Valencia",
     "tipo_turismo": "cultural",
@@ -13,13 +13,13 @@ contexto_base = {
     "preferencias": "con niños",
     "meteorologia": "soleado, 20°C",
     "lugares": [
-        {"nombre": "Ciudad de las Artes", "tipo": "museo"},
-        {"nombre": "Oceanogràfic", "tipo": "acuario"},
-        {"nombre": "Museo de las Ciencias", "tipo": "museo"}
+        {"nombre": "Ciudad de las Artes", "tipo": "museo", "lat": 39.4536, "lon": -0.3471},
+        {"nombre": "Oceanogràfic", "tipo": "acuario", "lat": 39.4529, "lon": -0.3468},
+        {"nombre": "Museo de las Ciencias", "tipo": "museo", "lat": 39.4561, "lon": -0.3486}
     ]
 }
 
-#Impresión por terminal
+# Sistema de reporte por terminal
 def ejecutar_test(nombre, funcion_test):
     try:
         funcion_test()
@@ -29,7 +29,7 @@ def ejecutar_test(nombre, funcion_test):
     except Exception as e:
         print(f"\033[91m💥 ERROR\033[0m | {nombre} -> Excepción inesperada: {type(e).__name__}: {str(e)}")
 
-#Test que prueban llm.py
+#Teststststs
 @patch("app.llm.LLM_MODE", "mock")
 def test_1_modo_simulador():
     texto, prompt = generar_itinerario(contexto_base)
@@ -38,7 +38,7 @@ def test_1_modo_simulador():
 
 @patch("app.llm.LLM_MODE", "cohere")
 @patch.dict(os.environ, {"COHERE_API_KEY": "test_key"})
-@patch("app.llm.requests.post") # Corregido el path del mock
+@patch("app.llm.requests.post")
 def test_2_exito_http_200(mock_post):
     mock_respuesta = MagicMock()
     mock_respuesta.status_code = 200
@@ -55,8 +55,11 @@ def test_2_exito_http_200(mock_post):
 @patch("app.llm.requests.post")
 def test_3_error_timeout(mock_post):
     mock_post.side_effect = requests.exceptions.Timeout("Timeout")
-    texto, _ = generar_itinerario(contexto_base)
-    assert "tiempo de espera" in texto.lower() or "timeout" in texto.lower(), "No se manejó el timeout correctamente"
+    try:
+        generar_itinerario(contexto_base)
+        assert False, "Debería haber lanzado RuntimeError por Timeout"
+    except RuntimeError as e:
+        assert "tiempo de espera" in str(e).lower() or "timeout" in str(e).lower()
 
 @patch("app.llm.LLM_MODE", "cohere")
 @patch.dict(os.environ, {"COHERE_API_KEY": "test_key"})
@@ -65,8 +68,11 @@ def test_4_error_401_no_autorizado(mock_post):
     mock_respuesta = MagicMock()
     mock_respuesta.status_code = 401
     mock_post.return_value = mock_respuesta
-    texto, _ = generar_itinerario(contexto_base)
-    assert "no autorizada" in texto.lower() or "inválida" in texto.lower(), "No se manejó el error 401"
+    try:
+        generar_itinerario(contexto_base)
+        assert False, "Debería haber lanzado RuntimeError por Error 401"
+    except RuntimeError as e:
+        assert "no autorizada" in str(e).lower() or "inválida" in str(e).lower()
 
 @patch("app.llm.LLM_MODE", "cohere")
 @patch.dict(os.environ, {"COHERE_API_KEY": "test_key"})
@@ -75,8 +81,11 @@ def test_5_error_429_limite_peticiones(mock_post):
     mock_respuesta = MagicMock()
     mock_respuesta.status_code = 429
     mock_post.return_value = mock_respuesta
-    texto, _ = generar_itinerario(contexto_base)
-    assert "límite" in texto.lower() or "excedido" in texto.lower(), "No se manejó el error 429"
+    try:
+        generar_itinerario(contexto_base)
+        assert False, "Debería haber lanzado RuntimeError por Error 429"
+    except RuntimeError as e:
+        assert "límite" in str(e).lower() or "excedido" in str(e).lower()
 
 @patch("app.llm.LLM_MODE", "cohere")
 @patch.dict(os.environ, {"COHERE_API_KEY": "test_key"})
@@ -86,8 +95,11 @@ def test_6_respuesta_vacia(mock_post):
     mock_respuesta.status_code = 200
     mock_respuesta.json.return_value = {"message": {"content": [{"text": ""}]}}
     mock_post.return_value = mock_respuesta
-    texto, _ = generar_itinerario(contexto_base)
-    assert "vacía" in texto.lower() or "error" in texto.lower(), "No se manejó la respuesta vacía"
+    try:
+        generar_itinerario(contexto_base)
+        assert False, "Debería haber lanzado RuntimeError por respuesta vacía"
+    except RuntimeError as e:
+        assert "vacía" in str(e).lower()
 
 @patch("app.llm.LLM_MODE", "cohere")
 @patch.dict(os.environ, {"COHERE_API_KEY": "test_key"})
@@ -113,7 +125,26 @@ def test_8_falta_api_key():
     except RuntimeError:
         pass 
 
-#Ejecución de tests con corrección de color 
+# NUEVO TEST: Validación estricta de inyección de coordenadas
+@patch("app.llm.LLM_MODE", "cohere")
+@patch.dict(os.environ, {"COHERE_API_KEY": "test_key"})
+@patch("app.llm.requests.post")
+def test_9_prompt_contiene_coordenadas(mock_post):
+    mock_respuesta = MagicMock()
+    mock_respuesta.status_code = 200
+    mock_respuesta.json.return_value = {"message": {"content": [{"text": "Ruta generada"}]}}
+    mock_post.return_value = mock_respuesta
+    
+    texto, prompt = generar_itinerario(contexto_base)
+    
+    # Verificamos que el lugar y sus coordenadas exactas se inyectan en el prompt
+    assert "Ciudad de las Artes" in prompt, "El prompt omite el nombre del lugar"
+    assert "39.4536" in prompt and "-0.3471" in prompt, "BUG: El prompt omite las coordenadas (lat/lon) a pesar de requerirlas en las instrucciones"
+
+
+# ==========================================
+# EJECUCIÓN DEL SUITE
+# ==========================================
 if __name__ == "__main__":
     print("\n🚀 INICIANDO BATERÍA DE TESTS (LLM - Cohere)\n" + "-"*50)
     
@@ -125,5 +156,6 @@ if __name__ == "__main__":
     ejecutar_test("Gestión de respuesta de texto vacía", test_6_respuesta_vacia)
     ejecutar_test("Inyección de texto cuando no hay lugares", test_7_sin_lugares_verificados)
     ejecutar_test("Excepción si no hay API Key configurada", test_8_falta_api_key)
+    ejecutar_test("Inyección de lugares con coordenadas en el prompt", test_9_prompt_contiene_coordenadas)
     
     print("-" * 50 + "\n🎯 TESTS FINALIZADOS\n")
