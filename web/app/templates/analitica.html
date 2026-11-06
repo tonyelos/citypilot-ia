@@ -3,15 +3,52 @@
 {% block content %}
 <section class="hero"><span class="eyebrow">MONITORIZACIÓN · POSTGRESQL</span><h1>Qué están pidiendo los usuarios</h1><p>Un panel basado en las solicitudes realmente almacenadas.</p></section>
 <section class="three">
-  <article class="tile"><h3>Peticiones totales</h3><p class="metric">—</p></article>
-  <article class="tile"><h3>Ciudades distintas</h3><p class="metric">—</p></article>
-  <article class="tile"><h3>Errores</h3><p class="metric">—</p></article>
+  <article class="tile"><h3>Peticiones totales</h3><p class="metric">{{ totales.total if totales else 0 }}</p></article>
+  <article class="tile"><h3>Ciudades distintas</h3><p class="metric">{{ totales.ciudades if totales else 0 }}</p></article>
+  <article class="tile"><h3>Errores</h3><p class="metric">{{ totales.errores if totales else 0 }}</p></article>
 </section>
 <section class="surface">
   <h2>Distribución de peticiones</h2>
-  <!-- TODO(ALUMNADO): imagen de /analitica/grafico.png y tabla (o top 5)
-       desde los datos consultados a PostgreSQL, NO en memoria.
-       Mostrar además una tabla de las 8 últimas peticiones (sin secretos). -->
-  <div class="todo">🛠️ Por implementar: métricas, una gráfica y tabla de peticiones recientes.</div>
+  <div style="margin: 1.5rem 0; text-align: center;">
+    <img src="{{ url_for('grafico') }}" alt="Gráfico de ciudades más consultadas" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e2e8f0;">
+  </div>
+
+  <h3 style="margin-top: 2rem;">Últimas peticiones registradas</h3>
+  {% if ultimas %}
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; margin-top: 1rem; text-align: left; font-size: 0.95rem;">
+      <thead>
+        <tr style="border-bottom: 2px solid #cbd5e0;">
+          <th style="padding: 0.5rem;">ID</th>
+          <th style="padding: 0.5rem;">Fecha</th>
+          <th style="padding: 0.5rem;">Ciudad</th>
+          <th style="padding: 0.5rem;">Tipo</th>
+          <th style="padding: 0.5rem;">Horas</th>
+          <th style="padding: 0.5rem;">Estado</th>
+          <th style="padding: 0.5rem;">Demo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in ultimas %}
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 0.5rem;">#{{ s.id }}</td>
+          <td style="padding: 0.5rem;">{{ s.fecha.strftime('%Y-%m-%d %H:%M') if s.fecha else '—' }}</td>
+          <td style="padding: 0.5rem;"><strong>{{ s.ciudad }}</strong></td>
+          <td style="padding: 0.5rem;">{{ s.tipo_turismo }}</td>
+          <td style="padding: 0.5rem;">{{ s.duracion_horas }}h</td>
+          <td style="padding: 0.5rem;">
+            <span style="padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem; font-weight: bold; background: {{ '#def7ec; color: #03543f;' if s.estado == 'ok' else '#fde8e8; color: #9b1c1c;' }}">
+              {{ s.estado }}
+            </span>
+          </td>
+          <td style="padding: 0.5rem;">{{ 'Sí' if s.modo_demo else 'No' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="margin-top: 1rem; color: #718096;">Todavía no hay peticiones guardadas en la base de datos.</p>
+  {% endif %}
 </section>
 {% endblock %}

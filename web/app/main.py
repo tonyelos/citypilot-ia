@@ -1,7 +1,8 @@
 """Rutas del servicio Flask. Esqueleto intencionalmente incompleto."""
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_file
 
-from app.db import ping_db
+from app.analytics import generar_grafico_ciudades
+from app.db import obtener_estadisticas, obtener_ultimas_solicitudes, ping_db
 from app.orchestrator import procesar_solicitud
 
 
@@ -53,18 +54,48 @@ def create_app():
 
     @app.get("/analitica")
     def analitica():
-        # TODO(ALUMNADO): consultar PostgreSQL y pasar métricas a la plantilla.
-        return render_template("analitica.html", totales=None, top_ciudades=[], ultimas=[])
+        try:
+            stats = obtener_estadisticas()
+            ultimas = obtener_ultimas_solicitudes(limite=8)
+            totales = {
+                "total": stats["total"],
+                "ciudades": stats["ciudades_distintas"],
+                "errores": stats["errores"],
+            }
+            return render_template(
+                "analitica.html",
+                totales=totales,
+                top_ciudades=stats["top_ciudades"],
+                ultimas=ultimas,
+            )
+        except Exception as exc:
+            app.logger.warning("No se pudo cargar la analítica: %s", exc)
+            return render_template(
+                "analitica.html",
+                totales={"total": 0, "ciudades": 0, "errores": 0},
+                top_ciudades=[],
+                ultimas=[],
+            )
 
     @app.get("/analitica/grafico.png")
     def grafico():
-        # TODO(ALUMNADO): generar una gráfica PNG de Matplotlib con datos SQL.
-        return "Pendiente: gráfica de peticiones", 501
+        try:
+            stats = obtener_estadisticas()
+            buf = generar_grafico_ciudades(stats.get("top_ciudades", []))
+            return send_file(buf, mimetype="image/png")
+        except Exception as exc:
+            app.logger.warning("No se pudo generar la gráfica: %s", exc)
+            buf = generar_grafico_ciudades([])
+            return send_file(buf, mimetype="image/png")
 
     @app.get("/api/estadisticas")
     def estadisticas_api():
-        # TODO(ALUMNADO): exponer el resumen de la base de datos como JSON.
-        return jsonify(error="Pendiente: estadísticas"), 501
+        try:
+            stats = obtener_estadisticas()
+            return jsonify(stats)
+        except Exception as exc:
+            app.logger.exception("Fallo al consultar estadísticas")
+            return jsonify(error="No se pudieron obtener las estadísticas"), 500
 
     return app
 
