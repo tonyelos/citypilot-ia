@@ -19,6 +19,15 @@ def guardar_solicitud(registro: dict) -> int:
     if engine is None:
         raise RuntimeError("Falta DATABASE_URL")
 
+    if "duracion_horas" not in registro or registro["duracion_horas"] is None:
+        raise ValueError("El campo 'duracion_horas' es obligatorio.")
+    try:
+        duracion_horas = int(registro["duracion_horas"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("El campo 'duracion_horas' debe ser numérico.") from exc
+    if duracion_horas not in (2, 4, 6):
+        raise ValueError("La duración debe ser 2, 4 o 6 horas.")
+
     # Serialización segura a JSONB para estructuras complejas
     meteorologia_raw = registro.get("meteorologia") or {}
     lugares_raw = registro.get("lugares") or []
@@ -55,7 +64,7 @@ def guardar_solicitud(registro: dict) -> int:
         "ciudad": str(registro.get("ciudad", "")),
         "pais": registro.get("pais"),
         "tipo_turismo": str(registro.get("tipo_turismo", "")),
-        "duracion_horas": int(registro.get("duracion_horas", 3)),
+        "duracion_horas": duracion_horas,
         "preferencias": str(registro.get("preferencias", "")),
         "latitud": float(registro["latitud"]) if registro.get("latitud") is not None else None,
         "longitud": float(registro["longitud"]) if registro.get("longitud") is not None else None,

@@ -1,13 +1,15 @@
 """Pruebas para persistencia en PostgreSQL y analítica (PR 4 - Estudiante 3)."""
 import io
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app import db, analytics, main  # noqa: E402
+from app import analytics, db, main  # noqa: E402
 
 
 @pytest.fixture
@@ -18,19 +20,31 @@ def cliente_flask():
         yield cliente
 
 
-def test_guardar_solicitud_y_obtener_estadisticas():
-    # Insertar una solicitud de prueba en la base de datos real de Docker
+def test_guardar_solicitud_valida_duracion_horas():
+    with pytest.raises(ValueError, match="obligatorio"):
+        db.guardar_solicitud({"ciudad": "Valencia", "tipo_turismo": "cultural"})
+
+    with pytest.raises(ValueError, match="2, 4 o 6"):
+        db.guardar_solicitud(
+            {"ciudad": "Valencia", "tipo_turismo": "cultural", "duracion_horas": 3}
+        )
+
+
+def test_guardar_solicitud_y_obtener_estadisticas_aislado():
+    # Usar nombre de ciudad único para aislar completamente el test
+    ciudad_test = f"CiudadTest_{uuid.uuid4().hex[:8]}"
+
     registro = {
-        "ciudad": "Valencia",
+        "ciudad": ciudad_test,
         "pais": "España",
         "tipo_turismo": "cultural",
-        "duracion_horas": 3,
+        "duracion_horas": 4,
         "preferencias": "visitar museos de arte",
         "latitud": 39.4699,
         "longitud": -0.3763,
         "meteorologia": {"temperatura_c": 18.5, "precipitacion_mm": 0.0},
         "lugares": [{"nombre": "Museo Bellas Artes", "categoria": "museum"}],
-        "prompt_usado": "Generar ruta cultural para Valencia",
+        "prompt_usado": "Generar ruta cultural",
         "itinerario": "10:00 Museo Bellas Artes",
         "estado": "ok",
         "duracion_ms": 120,
@@ -39,20 +53,31 @@ def test_guardar_solicitud_y_obtener_estadisticas():
         "modo_modelo": "mock",
     }
 
-    nuevo_id = db.guardar_solicitud(registro)
-    assert isinstance(nuevo_id, int)
-    assert nuevo_id > 0
+    nuevo_id = None
+    try:
+        nuevo_id = db.guardar_solicitud(registro)
+        assert isinstance(nuevo_id, int)
+        assert nuevo_id > 0
 
-    stats = db.obtener_estadisticas()
-    assert stats["total"] >= 1
-    assert stats["ciudades_distintas"] >= 1
-    assert any(c["ciudad"] == "Valencia" for c in stats["top_ciudades"])
+        stats = db.obtener_estadisticas()
+        assert stats["total"] >= 1
+        assert stats["ciudades_distintas"] >= 1
 
-    ultimas = db.obtener_ultimas_solicitudes(limite=5)
-    assert len(ultimas) >= 1
-    primera = ultimas[0]
-    assert primera["ciudad"] == "Valencia"
-    assert "prompt_usado" not in primera  # Garantizamos que no se filtran secretos/prompts
+        ultimas = db.obtener_ultimas_solicitudes(limite=50)
+        coincidencias = [s for s in ultimas if s["id"] == nuevo_id]
+        assert len(coincidencias) == 1
+        fila = coincidencias[0]
+        assert fila["ciudad"] == ciudad_test
+        assert fila["duracion_horas"] == 4
+        assert "prompt_usado" not in fila  # Garantizamos que no se filtran secretos/prompts
+    finally:
+        # Limpieza estricta para no dejar datos residuales en la BD compartida
+        if nuevo_id and db.engine:
+            with db.engine.begin() as conn:
+                conn.execute(
+                    text("DELETE FROM solicitudes WHERE id = :id"),
+                    {"id": nuevo_id},
+                )
 
 
 def test_generar_grafico_ciudades_retorna_png():
