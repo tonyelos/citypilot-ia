@@ -10,7 +10,7 @@ def create_app():
 
     @app.get("/")
     def inicio():
-        return render_template("index.html")
+        return render_template("index.html", valores={})
 
     @app.get("/api/health")
     def health():
@@ -31,7 +31,7 @@ def create_app():
                 preferencias=request.form.get("preferencias", ""),
             )
         except ValueError as exc:
-            return render_template("index.html", error=str(exc)), 400
+            return render_template("index.html", error=str(exc), valores=request.form), 400
         except Exception:
             # No mostrar el detalle técnico al usuario; queda en el log.
             app.logger.exception("Fallo al procesar la solicitud")
@@ -39,6 +39,7 @@ def create_app():
                 render_template(
                     "index.html",
                     error="No se pudo completar la planificación. Inténtalo de nuevo más tarde.",
+                    valores=request.form,
                 ),
                 502,
             )

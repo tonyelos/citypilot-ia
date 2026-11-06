@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Planificador · CityPilot IA{% endblock %}
 {% block content %}
+{% set v = valores|default({}) %}
 <section class="hero">
   <span class="eyebrow">TALLER DE INTEGRACIÓN · DATOS EN DIRECTO</span>
   <h1>¿Qué hacemos hoy?</h1>
@@ -10,34 +11,34 @@
   <h2>Tu plan para hoy</h2>
   {% if error %}<p class="notice">{{ error }}</p>{% endif %}
 
-  <form method="post" action="/planificar">
+  <form method="post" action="{{ url_for('planificar_html') }}">
     <div>
       <label for="ciudad">Ciudad</label>
-      <input id="ciudad" name="ciudad" type="text" maxlength="80" placeholder="Valencia" required>
+      <input id="ciudad" name="ciudad" type="text" maxlength="80" placeholder="Valencia"
+             value="{{ v.get('ciudad', '') }}" required>
     </div>
     <div>
       <label for="tipo_turismo">Tipo de turismo</label>
       <select id="tipo_turismo" name="tipo_turismo" required>
-        <option value="" disabled selected>Selecciona una opción</option>
-        <option value="cultural">Cultural</option>
-        <option value="gastronomica">Gastronómica</option>
-        <option value="naturaleza">Naturaleza</option>
-        <option value="familiar">Familiar</option>
+        <option value="" disabled {% if not v.get('tipo_turismo') %}selected{% endif %}>Selecciona una opción</option>
+        {% for valor, texto in [('cultural', 'Cultural'), ('gastronomica', 'Gastronómica'), ('naturaleza', 'Naturaleza'), ('familiar', 'Familiar')] %}
+        <option value="{{ valor }}" {% if v.get('tipo_turismo') == valor %}selected{% endif %}>{{ texto }}</option>
+        {% endfor %}
       </select>
     </div>
     <div>
       <label for="duracion_horas">Duración</label>
       <select id="duracion_horas" name="duracion_horas" required>
-        <option value="" disabled selected>Selecciona horas</option>
-        <option value="2">2 horas</option>
-        <option value="4">4 horas</option>
-        <option value="6">6 horas</option>
+        <option value="" disabled {% if not v.get('duracion_horas') %}selected{% endif %}>Selecciona horas</option>
+        {% for valor in [2, 4, 6] %}
+        <option value="{{ valor }}" {% if v.get('duracion_horas')|string == valor|string %}selected{% endif %}>{{ valor }} horas</option>
+        {% endfor %}
       </select>
     </div>
     <div>
       <label for="preferencias">Preferencias (opcional)</label>
       <textarea id="preferencias" name="preferencias" rows="3" maxlength="200"
-                placeholder="Con niños, evitar caminar mucho, interesa la historia..."></textarea>
+                placeholder="Con niños, evitar caminar mucho, interesa la historia...">{{ v.get('preferencias', '') }}</textarea>
       <p class="hint">Máximo 200 caracteres.</p>
     </div>
     <p><button type="submit">Generar mi ruta</button></p>
