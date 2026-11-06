@@ -23,9 +23,11 @@
 
 | Herramienta o fuente | Modelo/versión, si se conoce | Finalidad | ¿Se incorporó código o texto? |
 |---|---|---|---|
-| Google Gemini | Gemini (Web) | Traducción, comprensión de requisitos, diseño de consultas Overpass QL, lógica de normalización y estrategia de tests | Sí; código revisado, adaptado y corregido en `api_clients.py` y `test_lugares.py` |
+| Google Gemini | Gemini (Web) | Traducción, comprensión de requisitos, diseño de consultas Overpass QL, lógica de normalización, persistencia DB, analítica y estrategia de tests | Sí; código revisado, adaptado y corregido en `api_clients.py`, `db.py`, `analytics.py` y tests |
 | Documentación OpenStreetMap Overpass API | — | Sintaxis de Overpass QL (`around`, `out center`, `nwr`) | Consulta técnica |
 | `docs/APIS_Y_CONTRATOS.md` | — | Especificación de los contratos de datos y categorías | Referencia obligatoria |
+
+- **Evidencias adjuntas:** Conversación y prompts completos exportados en PDF en `entrega/evidencias/GoogleGemini_Chat_LuisWesinger.pdf`.
 
 ## 3. Registro cronológico de uso relevante de IA y recursos externos
 
@@ -80,8 +82,8 @@
 - **Herramienta/fuente y prompt o instrucción:** Google Gemini Web. Prompt: *"I need to implement guardar_solicitud(registro: dict) gpoing to int in sqlAlchemy Postgresql for my Flask project. The table is called solicitudes with columns: ciudad, pais, tipo_turismo, duracion_horas, preferencias, latitud, longitud meteorologia (jsonB), lugares (jsonB), prompt_usado, itinerario, estado, duracion_ms, error_resumido, modo_demo, modo_modelo. how do I write a safe parameterized INSERT returning the new id, ensuring dicts or lists are properly dumped to jsonB?"*
 - **Qué propuso o respondió:** Uso de `with engine.begin() as conn:`, sentencia `text(...)` con cláusula `RETURNING id;`, uso de `json.dumps()` para los campos JSON y casteo explícito con `CAST(:param AS jsonb)` en la consulta.
 - **Qué hice yo con ello:** Adopté el patrón de casteo `CAST(:param AS jsonb)` y la ejecución transaccional con `scalar_one()`. Añadí validación defensiva para que si algún campo opcional viene vacío no lance excepciones de tipo y se respete la integridad del esquema SQL de `db/init.sql`.
-- **Resultado y verificación:** Verificado con prueba unitaria en `test_analitica_db.py::test_guardar_solicitud_y_obtener_estadisticas`, comprobando que se inserta y devuelve el ID entero.
-- **Evidencia:** `web/app/db.py` (`guardar_solicitud`), `web/tests/test_analitica_db.py`.
+- **Resultado y verificación:** Verificado con prueba unitaria en `test_analitica_db.py::test_guardar_solicitud_y_obtener_estadisticas_aislado`, comprobando que se inserta y devuelve el ID entero.
+- **Evidencia:** `web/app/db.py` (`guardar_solicitud`), `web/tests/test_analitica_db.py`, `entrega/evidencias/GoogleGemini_Chat_LuisWesinger.pdf`.
 
 ### Interacción 7 — Consultas de agregación SQL y generación de gráficos en memoria (2026-11-06)
 
