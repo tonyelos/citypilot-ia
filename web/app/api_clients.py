@@ -128,7 +128,8 @@ def obtener_meteorologia(lat: float, lon: float) -> dict:
         instante = str(actual["time"])
     except (TypeError, ValueError) as exc:
         raise RuntimeError("La respuesta meteorológica tiene campos no numéricos.") from exc
-
+    if not 0 <= codigo <= 99:
+        raise RuntimeError("El código meteorológico WMO está fuera de rango.")
     return {
         "temperatura_c": temperatura,
         "precipitacion_mm": precipitacion,

@@ -133,3 +133,23 @@ def test_meteorologia_con_campo_ausente_no_lo_convierte_en_cero(monkeypatch):
 
     with pytest.raises(RuntimeError, match="precipitation"):
         api_clients.obtener_meteorologia(39.47, -0.38)
+
+
+def test_meteorologia_rechaza_codigo_wmo_fuera_de_rango(monkeypatch):
+    monkeypatch.setattr(
+        api_clients.requests,
+        "get",
+        lambda *args, **kwargs: RespuestaFalsa(
+            {
+                "current": {
+                    "time": "2026-11-06T09:00",
+                    "temperature_2m": 19.5,
+                    "precipitation": 0.0,
+                    "weather_code": 999,
+                }
+            }
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="WMO"):
+        api_clients.obtener_meteorologia(39.47, -0.38)
