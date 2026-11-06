@@ -1,6 +1,8 @@
 """Rutas del servicio Flask. Esqueleto intencionalmente incompleto."""
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
+
 from app.db import ping_db
+from app.orchestrator import procesar_solicitud
 
 
 def create_app():
@@ -8,7 +10,6 @@ def create_app():
 
     @app.get("/")
     def inicio():
-        # TODO(ALUMNADO): El formulario se desarrolla en templates/index.html.
         return render_template("index.html")
 
     @app.get("/api/health")
@@ -22,9 +23,26 @@ def create_app():
 
     @app.post("/planificar")
     def planificar_html():
-        # TODO(ALUMNADO): leer y validar request.form; llamar a UN orquestador
-        # compartido con /api/planificar; renderizar resultado.html.
-        return "Pendiente: formulario -> integración -> resultado", 501
+        try:
+            resultado = procesar_solicitud(
+                ciudad=request.form.get("ciudad", ""),
+                tipo_turismo=request.form.get("tipo_turismo", ""),
+                duracion_horas=request.form.get("duracion_horas", ""),
+                preferencias=request.form.get("preferencias", ""),
+            )
+        except ValueError as exc:
+            return render_template("index.html", error=str(exc)), 400
+        except Exception:
+            # No mostrar el detalle técnico al usuario; queda en el log.
+            app.logger.exception("Fallo al procesar la solicitud")
+            return (
+                render_template(
+                    "index.html",
+                    error="No se pudo completar la planificación. Inténtalo de nuevo más tarde.",
+                ),
+                502,
+            )
+        return render_template("resultado.html", **resultado)
 
     @app.post("/api/planificar")
     def planificar_api():
@@ -39,8 +57,7 @@ def create_app():
 
     @app.get("/analitica/grafico.png")
     def grafico():
-        # TODO(ALUMNADO): generar una gráfica PNG de Matplotlib con datos SQL,
-        # utilizando un BytesIO y Flask send_file. No JavaScript.
+        # TODO(ALUMNADO): generar una gráfica PNG de Matplotlib con datos SQL.
         return "Pendiente: gráfica de peticiones", 501
 
     @app.get("/api/estadisticas")
