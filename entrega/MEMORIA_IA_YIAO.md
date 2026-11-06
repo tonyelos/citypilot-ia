@@ -6,8 +6,8 @@
 - **Equipo:** Yiao TANG (Est.1), Marc (Est.2), Luis Wesinger (Est.3)
 - **Repositorio GitHub:** https://github.com/tonyelos/citypilot-ia
 - **Mis dos PR:** PR #1 (A1: geocodificación + meteorología) y mi segundo PR (web/orquestación, pendiente de abrir)
-- **Archivos y funciones que implementé personalmente:**
-  - `web/app/api_clients.py`: `geocodificar()`, `obtener_meteorologia()` y validación del rango WMO (`0 <= weather_code <= 99`).
+- **Archivos y funciones de mi responsabilidad (revisados y adaptados por mí):**
+  - `web/app/api_clients.py`: `geocodificar()` y `obtener_meteorologia()` (borrador inicial asistido por IA, revisado por mí) y validación del rango WMO (`0 <= weather_code <= 99`) añadida por mí.
   - `web/tests/test_geo_clima.py`: pruebas de normalización, resultados vacíos, timeout, bloque `current`, campos ausentes y código WMO fuera de rango.
 - **Pruebas ejecutadas personalmente:**
   - `docker compose exec web python -m pytest -q` → **9 passed**.
