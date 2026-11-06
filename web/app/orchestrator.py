@@ -66,7 +66,7 @@ def procesar_solicitud(ciudad: str, tipo_turismo: str, duracion_horas: int, pref
         lugares = api_clients.obtener_lugares(
             geocodificacion["lat"], geocodificacion["lon"], tipo_turismo
         )
-    except (RuntimeError, ValueError, NotImplementedError) as exc:
+    except (RuntimeError, NotImplementedError) as exc:
         # Fallback explícito para demostrar el flujo si Overpass no responde.
         logger.warning("Overpass no disponible; se usa el fixture demo: %s", exc)
         lugares = api_clients.cargar_fixture_lugares()
